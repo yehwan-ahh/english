@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>출퇴근 복습</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap" style="padding-bottom:40px">
+  <h1>🚇 출퇴근 복습</h1>
+  <p class="sub" id="status"></p>
+
+  <div class="card flash" id="flash">
+    <div class="front" id="front"></div>
+    <div class="back" id="back" hidden></div>
+    <div id="playRow" hidden><button id="playBtn">🔊 듣기</button></div>
+  </div>
+
+  <button class="big primary" id="showBtn">영어 문장 보기</button>
+  <div class="grades" id="grades" hidden>
+    <button data-g="0">😵 몰랐어요</button>
+    <button data-g="1">🤔 헷갈려요</button>
+    <button data-g="2">😊 알았어요</button>
+  </div>
+
+  <p class="muted" style="margin-top:18px">한국어를 보고 영어로 먼저 소리 내어 말해 본 뒤, 정답을 확인하세요.<br>
+  '몰랐어요'는 오늘 다시 나오고, '알았어요'를 누를수록 점점 더 나중에 나와요. 새 문장은 하루 10개씩 나와요.</p>
+  <p class="muted"><a href="index.html">🧩 문장 조립 연습</a></p>
+</div>
+
+<script src="pwa.js"></script>
+<script src="lessons.js"></script>
+<script src="seed.js"></script>
+<script src="store.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+let queue = [], cur = null, done = 0;
+
+function speak(text) {
+  if (!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text.replace(/_{2,}/g, "blank"));
+  u.lang = "en-US"; u.rate = 0.9;
+  speechSynthesis.speak(u);
+}
+
+function next() {
+  cur = queue.shift();
+  $("back").hidden = true; $("playRow").hidden = true; $("grades").hidden = true;
+  const total = Store.all().length;
+  if (!cur) {
+    $("front").textContent = done ? "🎉 오늘 복습 끝! 수고했어요." : "오늘 복습할 표현이 없어요. 내일 또 만나요!";
+    $("showBtn").hidden = true;
+    $("status").textContent = `전체 표현 ${total}개 · 오늘 ${done}개 복습`;
+    return;
+  }
+  $("showBtn").hidden = false;
+  $("front").textContent = cur.ko;
+  $("back").textContent = cur.en;
+  $("status").textContent = `남은 카드 ${queue.length + 1}개 · 오늘 ${done}개 복습 · 전체 ${total}개`;
+}
+
+$("showBtn").onclick = () => {
+  $("back").hidden = false; $("playRow").hidden = false; $("grades").hidden = false; $("showBtn").hidden = true;
+  speak(cur.en);
+};
+$("playBtn").onclick = () => speak(cur.en);
+document.querySelectorAll("#grades button").forEach((b) => {
+  b.onclick = () => {
+    const g = Number(b.dataset.g), card = cur;
+    Store.review(card.id, g);
+    done++;
+    if (g === 0) queue.splice(Math.min(3, queue.length), 0, card); // 몇 장 뒤에 다시
+    next();
+  };
+});
+queue = Store.due().sort(() => Math.random() - 0.5);
+next();
+</script>
+</body>
+</html>
